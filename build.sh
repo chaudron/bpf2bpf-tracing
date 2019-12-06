@@ -1,17 +1,20 @@
 set -e
 
+
 LLVM_PATH=/data/llvm-project/llvm/build/install/
 KERN_PATH=/data/linux_kernel
 PAHOLE=/home/vagrant/pahole/build/pahole
 
+
 # Make sure CLANG is the version we need
 export PATH=$LLVM_PATH/bin:$PATH
 clang --version
-
 echo "- ^^ CLANG version"
+
 
 $PAHOLE --version
 echo "- ^^ PAHOLE version"
+
 
 # Build the pass kernel program
 (clang  -I. -I$KERN_PATH/tools/testing/selftests/bpf -g \
@@ -48,7 +51,7 @@ echo "- Build xdp_sample_fentry_fexit_kern.o"
 
 
 # /data/linux_kernel/tools/lib/bpf
-#    
+#
 gcc -g -Wall -O2 -DHAVE_GENHDR -I$KERN_PATH/tools/include/uapi \
     -I$KERN_PATH/tools/lib -I$KERN_PATH/tools/lib/bpf \
     -I$KERN_PATH/include/generated -I$KERN_PATH/tools/include \
@@ -58,6 +61,7 @@ gcc -g -Wall -O2 -DHAVE_GENHDR -I$KERN_PATH/tools/include/uapi \
     -lcap -lelf -lrt -lpthread \
     -l:libbpf.a \
     -o xdp_sample_fentry_fexit_user
+
 
 # Removed the below as I get errors like
 #   "libbpf: Cannot find bpf_func_info for main program sec xdp_prog_simple_sec. Ignore all bpf_func_info."

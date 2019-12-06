@@ -3,41 +3,52 @@
 #include "bpf_helpers.h"
 #include "bpf_trace_helpers.h"
 
-// eval $(../testenv/testenv.sh alias)
-// t setup --name veth-tst
-// sudo ./xdp_pass_user --dev veth-tst
-// bpftool prog list
-//
-// 6: xdp  name xdp_prog_simple  tag 3b185187f1855c4c  gpl
-//        loaded_at 2019-11-28T13:33:13+0000  uid 0
-//        xlated 16B  jited 35B  memlock 4096B
-//        btf_id 3
-
-#define bpf_debug(fmt, ...)                         \
-{                                                   \
-  char __fmt[] = fmt;				    \
-  bpf_trace_printk(__fmt, sizeof(__fmt),	    \
-		   ##__VA_ARGS__);		    \
+#define bpf_debug(fmt, ...)                \
+{                                          \
+    char __fmt[] = fmt;                    \
+    bpf_trace_printk(__fmt, sizeof(__fmt), \
+                     ##__VA_ARGS__);       \
 }
+
+struct net_device {
+    /* Structure does not need to contain all entries,
+     * as "preserve_access_index" will use BTF to fix this... */
+    int                    ifindex;
+} __attribute__((preserve_access_index));
+
+struct xdp_rxq_info {
+    /* Structure does not need to contain all entries,
+     * as "preserve_access_index" will use BTF to fix this... */
+    struct net_device *dev;
+    __u32 queue_index;
+} __attribute__((preserve_access_index));
+
+struct xdp_buff {
+    void *data;
+    void *data_end;
+    void *data_meta;
+    void *data_hard_start;
+    unsigned long handle;
+    struct xdp_rxq_info *rxq;
+} __attribute__((preserve_access_index));
+
+
+BPF_TRACE_1("fentry/xdp_prog_simple", trace_on_entry,
+            struct xdp_buff *, xdp)
+{
+    bpf_debug("fentry: [ifindex = %u, queue =  %u]\n",
+              xdp->rxq->dev->ifindex, xdp->rxq->queue_index);
+    return 0;
+}
+
 
 BPF_TRACE_2("fexit/xdp_prog_simple", trace_on_exit,
-	    struct xdp_md *, ctx, int, ret)
+            struct xdp_buff*, xdp, int, ret)
 {
-  return 0;
+    bpf_debug("fexit: [ifindex = %u, queue =  %u, ret = %d]\n",
+              xdp->rxq->dev->ifindex, xdp->rxq->queue_index, ret);
+
+    return 0;
 }
-
-/* struct args { */
-/*   struct xdp_md *ctx; */
-/*   int ret; */
-/* }; */
-
-/* SEC("fexit/xdp_prog_simple") */
-/* int test_main(struct args *ctx) */
-/* { */
-/*   bpf_debug("EELCO Debug: [ifindex = %u, queue =  %u, ret = %d]\n", */
-/*   	    ctx->ctx->ingress_ifindex, ctx->ctx->rx_queue_index, ctx->ret); */
-
-/*   return 0; */
-/* } */
 
 char _license[] SEC("license") = "GPL";
